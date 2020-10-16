@@ -1,0 +1,13 @@
+
+
+DealSummaryReport
+Sales FXCash P&L Report
+ASIC Report
+Customer MTM Report
+SpotVolReport
+CptyWiseSpotVolReport
+DealEnquiryReport
+CashflowReport
+TarnCashflowReport
+PnL Report
+Counterparty Details Report

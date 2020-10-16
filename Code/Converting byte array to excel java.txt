@@ -1,0 +1,13 @@
+    private static void writeReport(java.nio.ByteBuffer output) throws IOException, InvalidFormatException {
+        InputStream myInputStream = new ByteArrayInputStream(output.array());
+        String ReportsFolder = "C://ReportsFolder//";
+
+        Workbook wbook = new XSSFWorkbook();
+        DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+        LocalDateTime now = LocalDateTime.now();
+        String outputFileName = ReportsFolder+"SpotVolReport"+dtf.format(now)+".xlsx";
+        FileOutputStream opStr = new FileOutputStream(outputFileName);
+        IOUtils.copy(myInputStream, opStr);
+        wbook.write(opStr);
+        wbook.close();
+	}

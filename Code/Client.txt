@@ -1,0 +1,43 @@
+using System;
+using System.Net.Sockets;
+using System.Security.Authentication;
+using System.Security.Cryptography.X509Certificates;
+using Thrift.Protocol;
+using Thrift.Transport.Client;
+
+namespace ThirftClientCSharp
+{
+    class ThriftClientMain
+    {
+        static async System.Threading.Tasks.Task Main(string[] args)
+        {
+            Console.WriteLine("Starting Thrift Client!");
+
+            var client = new TcpClient("localhost", 9091);
+
+            // This is the SSL certificate to be used
+            X509Certificate2 certificate = new X509Certificate2("C:/FM/mySrvKeystore.p12", "thrift");
+            Thrift.Transport.TTransport transport = new TTlsSocketTransport(client, certificate, false, null, null, SslProtocols.Tls12);
+            var protocol = new TBinaryProtocol(transport);
+
+            // create multiple TMultiplexedProtocol for each service that is needed
+            TMultiplexedProtocol mp = new TMultiplexedProtocol(protocol, "ReportingService");
+            var reportingClient = new ReportingService.Client(mp);
+
+            //the client server is now connected
+            Console.WriteLine("connected");
+
+            //Perform the task
+            string reportName = "SpotVolReport";
+            DateTime now = DateTime.Now;
+            string nowString = now.ToString("yyyy-mm-dd hh:mm:ss");
+            string date = "2020-08-20 18:00:00";
+            ReportOutput output = await reportingClient.getBatchReportsAsync(reportName, date);
+            byte[] result = output.Result;
+
+            //close the connection
+            Console.WriteLine("done");
+            transport.Close();
+        }
+    }
+}
