@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -7,6 +8,7 @@ using System.Net.Http.Headers;
 using System.Net.Sockets;
 using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using System.Threading.Tasks;
 using Thrift.Protocol;
 using Thrift.Transport.Client;
@@ -19,7 +21,7 @@ namespace ThirftClientCSharp
         {
             ///Start connetion
             Console.WriteLine("Starting Thrift Client!");
-            var localost = "10.1.2.9";
+            var localost = "10.1.2.12";
             var client = new TcpClient(localost, 9095);
 
             /// This is the SSL certificate to be used
@@ -34,7 +36,7 @@ namespace ThirftClientCSharp
             ///the client server is now connected
             Console.WriteLine("connected");
 
-            //Available Reports from FM
+            //Available Report List from FM
 
             ///string reportName = "FxCashPnLReport";
             ///Sales FXCash P&L ReportASIC Report
@@ -48,13 +50,14 @@ namespace ThirftClientCSharp
             ///SpotVolReport
             ///DealEnquiryReport
             ///CashflowReport
-
+            string dealSummaryEndpointURl = "https://localhost:5001/api/Risk/ReadDealSummary";
+            string spotVolEndpointURl = "https://localhost:5001/api/Risk/ReadSpotVol";
             string reportName = "DealSummaryReport";
-
+            string Id = string.Empty;
             DateTime now = DateTime.Now;
             string nowString = now.ToString("yyyy-mm-dd hh:mm:ss");
-            string date = "2020-09-02 18:00:00";
-            ReportOutput output = await reportingClient.getBatchReportsAsync(reportName, date);
+            string reportDate = "2020-10-10 18:00:00";
+            ReportOutput output = await reportingClient.getBatchReportsAsync(reportName, reportDate);
             byte[] result = output.Result;
 
 
@@ -63,50 +66,69 @@ namespace ThirftClientCSharp
             transport.Close();
             try
             {
-                FMReports.Services.InsertByteArrayintoSqlDatabase.StoreByteArrayintoSqlDatabase(result);
-                Console.WriteLine("data has been inserted to SQL databasec");
+                Id = FMReports.Services.InsertByteArrayintoSqlDatabase.StoreByteArrayintoSqlDatabase(result,reportName);
+                Console.WriteLine(reportName+" data has been inserted to SQL database " + Id);
             }
             catch (Exception e)
             {
                 Console.WriteLine(e.Message);
             }
+            ////try
+            ////{
+            ////    FileStream fs = new FileStream("C:\\FM\\" + reportName + ".csv", FileMode.Create, FileAccess.ReadWrite);
+            ////    BinaryWriter bw = new BinaryWriter(fs);
+            ////    bw.Write(result);
+            ////    Console.WriteLine("csv file created");
+            ////}
+            ////catch (Exception e)
+            ////{
+            ////    Console.WriteLine(e.Message);
+            ////}
+            ///
+
 
             try
             {
-                FileStream fs = new FileStream("C:\\FM\\" + reportName + ".csv", FileMode.Create, FileAccess.ReadWrite);
-                BinaryWriter bw = new BinaryWriter(fs);
-                bw.Write(result);
-                Console.WriteLine("csv file created");
+                if (reportName == "DealSummaryReport")
+                {
+                    await PostRequest(dealSummaryEndpointURl, Id);
+                }
+                else
+                {
+                    await PostRequest(spotVolEndpointURl, Id);
+                }
             }
             catch (Exception e)
             {
                 Console.WriteLine(e.Message);
             }
         }
-
-        async static void PostRequest(string url, string date)
+        public async static Task PostRequest(string url, string Id)
         {
-            DateTime now = DateTime.Now;
-            string nowString = now.ToString("yyyy-mm-dd hh:mm:ss");
 
-            IEnumerable<KeyValuePair<string, string>> queries = new List<KeyValuePair<string, string>>()
-            {
-                new KeyValuePair<string, string>("finMechid","1")
-            };
-
-            HttpContent q = new FormUrlEncodedContent(queries);
             using (HttpClient client = new HttpClient())
             {
-                using (HttpResponseMessage response = await client.PostAsync(url, q))
-                {
-                    using (HttpContent content = response.Content)
-                    {
-                        string myContent = await content.ReadAsStringAsync();
-                        HttpContentHeaders headers = content.Headers;
 
-                        Console.WriteLine(myContent);
-                    }
+
+                JObject o = JObject.FromObject(new
+                {
+                    FinMechId = Id
+                });
+
+
+                var request = new HttpRequestMessage(HttpMethod.Post, new Uri(url))
+                {
+                    Content = new StringContent(o.ToString(), Encoding.UTF8, "application/json")
+                };
+                var response = await client.SendAsync(request);
+                var contentJson = await response.Content.ReadAsStringAsync();
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    throw new Exception(contentJson);
                 }
+
+                Console.WriteLine("Request has been sent to " + url +"successfully with report ID is:" + Id);
 
             }
         }

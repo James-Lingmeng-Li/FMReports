@@ -8,25 +8,31 @@ namespace FMReports.Services
 {
     public class InsertByteArrayintoSqlDatabase
     {
-        public static void StoreByteArrayintoSqlDatabase(byte[] result)
+        public static string StoreByteArrayintoSqlDatabase(byte[] result,string reportName)
         {
             byte[] byteData = result;
-            var strData = System.Text.Encoding.UTF8.GetString(byteData);
+            var strData = Encoding.UTF8.GetString(byteData);
+           
+            
 
-            using (SqlConnection sqlconnection = new SqlConnection("Server=(localdb)\\mssqllocaldb;Database=fx_portal_test2;Trusted_Connection=True;MultipleActiveResultSets=true;"))
+            using (SqlConnection con = new SqlConnection("Server=(localdb)\\mssqllocaldb;Database=fx_portal_test;Trusted_Connection=True;MultipleActiveResultSets=true;"))
+            using (SqlCommand cmd = new SqlCommand(@"INSERT INTO[dbo].[FinMechanicsReports]([Id],[Created],[BinData],[CsvData],[ReportName],[IsProcessed]) output INSERTED.ID VALUES(@Id, getdate() , @BinData, @CsvData, @ReportName,0)", con))
+
             {
-                sqlconnection.Open();
-                // create table if not exists 
-                string insertXmlQuery = @"Insert Into [FinMechanicsReports] (Id,CsvData,Created) Values(3,@CsvData,getdate())";
-
-                // Insert Byte [] Value into Sql Table by SqlParameter
-                SqlCommand insertCommand = new SqlCommand(insertXmlQuery, sqlconnection);
-                SqlParameter sqlParam = insertCommand.Parameters.AddWithValue("@CsvData", strData);
-                sqlParam.DbType = DbType.String;
+                var guid = Guid.NewGuid().ToString();
+                cmd.Parameters.AddWithValue("@Id", guid);
+                cmd.Parameters.AddWithValue("@BinData", byteData);
+                cmd.Parameters.AddWithValue("@CsvData", strData);
+                cmd.Parameters.AddWithValue("@ReportName", reportName);
                 
-
-                insertCommand.ExecuteNonQuery();
+                con.Open();
+                string modified = (string)cmd.ExecuteScalar();
+                if (con.State == System.Data.ConnectionState.Open)
+                    con.Close();
+                return guid;
             }
         }
+
+
     }
 }
